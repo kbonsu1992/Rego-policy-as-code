@@ -1,0 +1,6 @@
+{
+    "findings": [
+      { "type": "Hardcoded API Key", "severity": "HIGH", "location": "MainActivity.java" }
+    ]
+  }
+  

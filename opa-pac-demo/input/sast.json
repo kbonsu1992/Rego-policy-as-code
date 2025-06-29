@@ -1,0 +1,6 @@
+{
+    "vulnerabilities": [
+      { "id": "SQL_INJECTION", "severity": "HIGH", "file": "src/db.py", "line": 45 }
+    ]
+  }
+  

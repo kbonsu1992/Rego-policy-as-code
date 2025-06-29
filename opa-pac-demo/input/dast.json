@@ -1,0 +1,6 @@
+{
+    "issues": [
+      { "name": "Cross-Site Scripting", "severity": "HIGH" }
+    ]
+  }
+  
