@@ -1,7 +1,7 @@
 package mast.policy
 
-deny[msg] {
-  f := input.findings[_]
-  f.severity == "HIGH"
-  msg := sprintf("❌ MAST issue: %s in %s", [f.type, f.location])
+deny[msg] if {
+  some finding in input.findings
+  finding.severity == "HIGH"
+  msg = sprintf("MAST - High severity issue: %s in %s", [finding.type, finding.location])
 }

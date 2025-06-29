@@ -1,7 +1,7 @@
 package dast.policy
 
-deny[msg] {
-  issue := input.issues[_]
+deny[msg] if {
+  some issue in input.issues
   issue.severity == "HIGH"
-  msg := sprintf("❌ DAST issue: %s (HIGH)", [issue.name])
+  msg = sprintf("DAST - High severity issue: %s", [issue.name])
 }

@@ -1,7 +1,7 @@
 {
     "dependencies": [
         {
-            "package": "log4j",
+            "pkg": "log4j",
             "version": "2.14.1",
             "cve": "CVE-2021-44228",
             "severity": "CRITICAL"
