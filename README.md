@@ -1,8 +1,8 @@
 # Rego Policy as Code - Application Security Scanner Policies
 
-This project demonstrates how to implement Open Policy Agent (OPA) policies for various application security scanners including SAST, DAST, MAST, and SCA. The policies are designed to evaluate security scan results and provide automated compliance checks.
+This project uses Open Policy Agent (OPA) to enforce policy-as-code checks for SAST, DAST, MAST, and SCA scan results.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Rego-policy-as-code/
@@ -21,39 +21,35 @@ Rego-policy-as-code/
 └── README.md
 ```
 
-## 🔧 Prerequisites
+## Prerequisites
 
 - Docker installed and running
 - Basic understanding of Rego policy language
 - Familiarity with application security scanning concepts
 
-## 📋 Policy Overview
+## Policy Overview
 
 ### 1. SAST (Static Application Security Testing)
-- **Policy File**: `policies/sast.rego`
+- **Policy**: `policies/sast.rego`
 - **Input**: `inputs/sast.json`
-- **Purpose**: Evaluates static code analysis results for security vulnerabilities
-- **Rules**: Denies builds with critical or high severity vulnerabilities
+- **Threshold**: Deny on `HIGH` and `CRITICAL`
 
 ### 2. DAST (Dynamic Application Security Testing)
-- **Policy File**: `policies/dast.rego`
+- **Policy**: `policies/dast.rego`
 - **Input**: `inputs/dast.json`
-- **Purpose**: Evaluates runtime security testing results
-- **Rules**: Denies deployments with critical security findings
+- **Threshold**: Deny on `HIGH` and `CRITICAL`
 
 ### 3. MAST (Mobile Application Security Testing)
-- **Policy File**: `policies/mast.rego`
+- **Policy**: `policies/mast.rego`
 - **Input**: `inputs/mast.json`
-- **Purpose**: Evaluates mobile app security scan results
-- **Rules**: Denies mobile app releases with critical vulnerabilities
+- **Threshold**: Deny on `HIGH` and `CRITICAL`
 
 ### 4. SCA (Software Composition Analysis)
-- **Policy File**: `policies/sca.rego`
+- **Policy**: `policies/sca.rego`
 - **Input**: `inputs/sca.json`
-- **Purpose**: Evaluates third-party dependency vulnerabilities
-- **Rules**: Denies builds with critical dependency vulnerabilities
+- **Threshold**: Deny on `HIGH` and `CRITICAL`
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Build the Docker Image
 
@@ -93,113 +89,150 @@ curl -X POST http://localhost:8181/v1/data/sca/policy \
   }'
 ```
 
-## 🔍 Policy Details
+## Policy Source of Truth (Actual Implementation)
 
-### SAST Policy (`policies/sast.rego`)
-```rego
-package sast.policy
+Use this section as the canonical reference for policy behavior in `opa-pac-demo/policies/*.rego`.
 
-deny[msg] if {
-  some vuln in input.vulnerabilities
-  vuln.severity == "CRITICAL"
-  msg = sprintf("SAST - Critical vulnerability %s in %s", [vuln.cve, vuln.file])
-}
-```
+### 1) SAST
 
-### DAST Policy (`policies/dast.rego`)
-```rego
-package dast.policy
+- **Policy package**: `sast.policy`
+- **Endpoint**: `POST /v1/data/sast/policy`
+- **Expected input schema**:
+  - `input.vulnerabilities[]`
+  - Fields used by policy: `id`, `severity`, `file`, `line`
+  - Optional waiver list: `input.exceptions[]` with `id` values to skip
+- **Deny condition**: `severity` is `HIGH` or `CRITICAL` (unless waived)
 
-deny[msg] if {
-  some finding in input.findings
-  finding.severity == "CRITICAL"
-  msg = sprintf("DAST - Critical finding %s at %s", [finding.id, finding.url])
-}
-```
-
-### MAST Policy (`policies/mast.rego`)
-```rego
-package mast.policy
-
-deny[msg] if {
-  some issue in input.issues
-  issue.severity == "CRITICAL"
-  msg = sprintf("MAST - Critical issue %s in %s", [issue.id, issue.component])
-}
-```
-
-### SCA Policy (`policies/sca.rego`)
-```rego
-package sca.policy
-
-deny[msg] if {
-  some dep in input.dependencies
-  dep.severity == "CRITICAL"
-  msg = sprintf("SCA - Critical vulnerability %s in %s %s", [dep.cve, dep.pkg, dep.version])
-}
-```
-
-## 📊 Sample Inputs
-
-### SCA Input (`inputs/sca.json`)
-```json
-{
-  "dependencies": [
-    {
-      "pkg": "log4j",
-      "version": "2.14.1",
-      "cve": "CVE-2021-44228",
-      "severity": "CRITICAL"
+```bash
+curl -X POST http://localhost:8181/v1/data/sast/policy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "vulnerabilities": [
+        {
+          "id": "SQL_INJECTION",
+          "severity": "HIGH",
+          "file": "src/db.py",
+          "line": 45
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "EXAMPLE_WAIVER_ID"
+        }
+      ]
     }
-  ]
-}
+  }'
 ```
 
-### SAST Input (`inputs/sast.json`)
-```json
-{
-  "vulnerabilities": [
-    {
-      "cve": "CVE-2021-1234",
-      "severity": "CRITICAL",
-      "file": "src/main/java/Example.java",
-      "line": 42
+### 2) DAST
+
+- **Policy package**: `dast.policy`
+- **Endpoint**: `POST /v1/data/dast/policy`
+- **Expected input schema**:
+  - `input.issues[]`
+  - Fields used by policy: `name`, `severity`
+  - Optional waiver list: `input.exceptions[]` with `id` values to skip
+- **Deny condition**: `severity` is `HIGH` or `CRITICAL` (unless waived)
+
+```bash
+curl -X POST http://localhost:8181/v1/data/dast/policy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "issues": [
+        {
+          "name": "Cross-Site Scripting",
+          "severity": "HIGH"
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "EXAMPLE_WAIVER_ID"
+        }
+      ]
     }
-  ]
-}
+  }'
 ```
 
-### DAST Input (`inputs/dast.json`)
-```json
-{
-  "findings": [
-    {
-      "id": "SQL_INJECTION_001",
-      "severity": "CRITICAL",
-      "url": "https://example.com/api/users",
-      "description": "SQL injection vulnerability detected"
+### 3) MAST
+
+- **Policy package**: `mast.policy`
+- **Endpoint**: `POST /v1/data/mast/policy`
+- **Expected input schema**:
+  - `input.findings[]`
+  - Fields used by policy: `type`, `severity`, `location`
+  - Optional waiver list: `input.exceptions[]` with `id` values to skip
+- **Deny condition**: `severity` is `HIGH` or `CRITICAL` (unless waived)
+
+```bash
+curl -X POST http://localhost:8181/v1/data/mast/policy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "findings": [
+        {
+          "type": "Hardcoded API Key",
+          "severity": "HIGH",
+          "location": "MainActivity.java"
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "EXAMPLE_WAIVER_ID"
+        }
+      ]
     }
-  ]
-}
+  }'
 ```
 
-### MAST Input (`inputs/mast.json`)
-```json
-{
-  "issues": [
-    {
-      "id": "INSECURE_STORAGE_001",
-      "severity": "CRITICAL",
-      "component": "DataStorage.java",
-      "description": "Sensitive data stored in plain text"
+### 4) SCA
+
+- **Policy package**: `sca.policy`
+- **Endpoint**: `POST /v1/data/sca/policy`
+- **Expected input schema**:
+  - `input.dependencies[]`
+  - Fields used by policy: `pkg`, `version`, `cve`, `severity`
+  - Optional waiver list: `input.exceptions[]` with `id` values to skip
+- **Deny condition**: `severity` is `HIGH` or `CRITICAL` (unless waived)
+
+```bash
+curl -X POST http://localhost:8181/v1/data/sca/policy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "dependencies": [
+        {
+          "pkg": "log4j",
+          "version": "2.14.1",
+          "cve": "CVE-2021-44228",
+          "severity": "CRITICAL"
+        }
+      ],
+      "exceptions": [
+        {
+          "id": "CVE-2021-44228"
+        }
+      ]
     }
-  ]
-}
+  }'
 ```
 
-## 🐛 Common Errors and Fixes
+### Notes
 
-### 1. Rego Parse Error: Unexpected Package Keyword
+- All policies deny on `HIGH` and `CRITICAL` severities.
+- Field names are scanner-specific and must match exactly:
+  - SAST: `vulnerabilities`
+  - DAST: `issues`
+  - MAST: `findings`
+  - SCA: `dependencies`
+- Waivers are optional and scanner-agnostic via `input.exceptions[]`:
+  - Example: `{ "id": "CVE-2021-44228" }`
+  - Match behavior: if exception `id` matches the policy identifier, that result is skipped.
+
+## Common Errors and Fixes
+
+### 1. Rego Parse Error: Unexpected `package` Keyword
 
 **Error:**
 ```
@@ -207,9 +240,9 @@ rego_parse_error: unexpected package keyword: expected identifier
 msg = sprintf("SCA - Critical vulnerability %s in %s %s", [dep.cve, dep.package, dep.version])
 ```
 
-**Cause:** Using `dep.package` where `package` is a reserved keyword in Rego.
+**Cause:** `package` is a reserved keyword in Rego, so `dep.package` is invalid.
 
-**Fix:** Rename the field from `package` to `pkg` in both the policy and input JSON.
+**Fix:** Use `dep.pkg` in both policy and input JSON.
 
 **Before:**
 ```rego
@@ -241,16 +274,12 @@ docker run --rm -p 8181:8181 -v $(pwd)/policies:/policies opa-appsec-policies ru
 
 ### 3. Policy Validation Errors
 
-**Error:** `1 error occurred during loading`
-
-**Cause:** Syntax errors in Rego policies or missing dependencies.
-
-**Fix:** Validate policies using OPA check command:
+If policy loading fails, validate syntax with:
 ```bash
 docker run --rm -v $(pwd)/policies:/policies openpolicyagent/opa:latest check /policies/*.rego
 ```
 
-## 🔄 API Usage Examples
+## API Usage Examples
 
 ### Evaluate All Policies
 ```bash
@@ -290,23 +319,18 @@ curl -X POST http://localhost:8181/v1/data/sast/policy \
 }
 ```
 
-## 🏗️ Docker Build Process
+## Docker Build Process
 
 ### Dockerfile Analysis
 ```dockerfile
 FROM openpolicyagent/opa:latest
 
-# Copy policies to container
-COPY policies /policies
+# Copy policies and sample inputs to container
+COPY policies/ /policies/
+COPY inputs/ /inputs/
 
-# Set working directory
-WORKDIR /policies
-
-# Expose OPA server port
-EXPOSE 8181
-
-# Default command to run OPA server
-CMD ["run", "--server", "/policies"]
+# Use OPA binary as container entrypoint
+ENTRYPOINT ["opa"]
 ```
 
 ### Build Commands
@@ -315,13 +339,13 @@ CMD ["run", "--server", "/policies"]
 docker build -t opa-appsec-policies .
 
 # Run container
-docker run --rm -p 8181:8181 opa-appsec-policies
+docker run --rm -p 8181:8181 opa-appsec-policies run --server --addr 0.0.0.0:8181 /policies
 
 # Run with volume mount for development
-docker run --rm -p 8181:8181 -v $(pwd)/policies:/policies opa-appsec-policies
+docker run --rm -p 8181:8181 -v $(pwd)/policies:/policies opa-appsec-policies run --server --addr 0.0.0.0:8181 /policies
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Manual Testing
 ```bash
@@ -335,9 +359,9 @@ curl -X POST http://localhost:8181/v1/data/sca/policy \
 ```
 
 ### Automated Testing
-Create test scripts to validate policy behavior with various inputs.
+Add automated tests (for example, OPA/Rego test cases) to validate policy behavior across multiple input variants.
 
-## 📈 Integration Examples
+## Integration Examples
 
 ### CI/CD Pipeline Integration
 ```yaml
@@ -352,7 +376,7 @@ Create test scripts to validate policy behavior with various inputs.
 ### Kubernetes Admission Controller
 Use OPA as an admission controller to enforce policies on Kubernetes resources.
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Check Container Status
 ```bash
@@ -368,16 +392,19 @@ docker run --rm -v $(pwd)/policies:/policies openpolicyagent/opa:latest check /p
 ### Test Network Connectivity
 ```bash
 curl -v http://localhost:8181/health
+# Linux/macOS:
 netstat -an | grep 8181
+# Windows PowerShell:
+netstat -an | findstr 8181
 ```
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [Open Policy Agent Documentation](https://www.openpolicyagent.org/docs/)
 - [Rego Policy Language Reference](https://www.openpolicyagent.org/docs/latest/policy-language/)
 - [OPA REST API Documentation](https://www.openpolicyagent.org/docs/latest/rest-api/)
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -385,6 +412,4 @@ netstat -an | grep 8181
 4. Test thoroughly
 5. Submit a pull request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 
+## License
