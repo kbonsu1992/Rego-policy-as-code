@@ -1,0 +1,34 @@
+{
+  "iamBindings": [
+    {
+      "id": "project-owner-binding",
+      "role": "roles/owner",
+      "members": ["user:admin@example.com"]
+    },
+    {
+      "id": "public-viewer-binding",
+      "role": "roles/storage.objectViewer",
+      "members": ["allUsers"]
+    },
+    {
+      "id": "app-runtime-binding",
+      "role": "roles/run.invoker",
+      "members": ["serviceAccount:app@project.iam.gserviceaccount.com"]
+    }
+  ],
+  "serviceAccounts": [
+    {
+      "email": "legacy-sa@project.iam.gserviceaccount.com",
+      "keys": [
+        { "name": "key-1", "keyType": "USER_MANAGED" },
+        { "name": "key-2", "keyType": "SYSTEM_MANAGED" }
+      ]
+    },
+    {
+      "email": "secure-sa@project.iam.gserviceaccount.com",
+      "keys": [
+        { "name": "key-1", "keyType": "SYSTEM_MANAGED" }
+      ]
+    }
+  ]
+}

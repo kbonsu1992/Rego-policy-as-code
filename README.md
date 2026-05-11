@@ -8,16 +8,22 @@ This project uses Open Policy Agent (OPA) to enforce policy-as-code checks for S
 Rego-policy-as-code/
 ├── opa-pac-demo/
 │   ├── Dockerfile                 # Custom OPA Docker image
-│   ├── inputs/                    # Sample JSON inputs for each scanner
+│   ├── inputs/                    # Sample JSON inputs for each policy
 │   │   ├── dast.json             # DAST scan results
 │   │   ├── mast.json             # MAST scan results
 │   │   ├── sast.json             # SAST scan results
-│   │   └── sca.json              # SCA scan results
+│   │   ├── sca.json              # SCA scan results
+│   │   ├── gcs.json              # GCS bucket inventory sample
+│   │   ├── gke.json              # GKE cluster inventory sample
+│   │   └── iam.json              # IAM bindings + service accounts sample
 │   └── policies/                  # Rego policy files
 │       ├── dast.rego             # DAST policy rules
 │       ├── mast.rego             # MAST policy rules
 │       ├── sast.rego             # SAST policy rules
-│       └── sca.rego              # SCA policy rules
+│       ├── sca.rego              # SCA policy rules
+│       ├── gcs.rego              # GCS public/UBLA/PAP controls
+│       ├── gke.rego              # GKE hardening controls
+│       └── iam.rego              # IAM least-privilege controls
 └── README.md
 ```
 
@@ -48,6 +54,21 @@ Rego-policy-as-code/
 - **Policy**: `policies/sca.rego`
 - **Input**: `inputs/sca.json`
 - **Threshold**: Deny on `HIGH` and `CRITICAL`
+
+### 5. GCP - GCS (Cloud Storage)
+- **Policy**: `policies/gcs.rego`
+- **Input**: `inputs/gcs.json`
+- **Controls**: no public buckets, Uniform Bucket-Level Access required, Public Access Prevention enforced
+
+### 6. GCP - GKE (Kubernetes Engine)
+- **Policy**: `policies/gke.rego`
+- **Input**: `inputs/gke.json`
+- **Controls**: private nodes required, Workload Identity required, no legacy ABAC, Master Authorized Networks required, no basic auth
+
+### 7. GCP - IAM
+- **Policy**: `policies/iam.rego`
+- **Input**: `inputs/iam.json`
+- **Controls**: no public principals (`allUsers`/`allAuthenticatedUsers`), no primitive roles (`owner`/`editor`/`viewer`), no user-managed service account keys
 
 ## Quick Start
 
@@ -218,16 +239,77 @@ curl -X POST http://localhost:8181/v1/data/sca/policy \
   }'
 ```
 
+### 5) GCP - GCS
+
+- **Policy package**: `gcs.policy`
+- **Endpoint**: `POST /v1/data/gcs/policy`
+- **Expected input schema**:
+  - `input.buckets[]` with fields: `name`, `iamConfiguration.uniformBucketLevelAccess.enabled`, `iamConfiguration.publicAccessPrevention`, `iamBindings[].role`, `iamBindings[].members[]`
+  - Optional waiver list: `input.exceptions[]` with `id` matching bucket `name`
+- **Deny conditions**:
+  - Any binding contains `allUsers` or `allAuthenticatedUsers`
+  - Uniform Bucket-Level Access disabled
+  - Public Access Prevention is not `enforced`
+
+```bash
+curl -X POST http://localhost:8181/v1/data/gcs/policy \
+  -H "Content-Type: application/json" \
+  -d @inputs/gcs.json
+```
+
+### 6) GCP - GKE
+
+- **Policy package**: `gke.policy`
+- **Endpoint**: `POST /v1/data/gke/policy`
+- **Expected input schema**:
+  - `input.clusters[]` with fields: `name`, `privateClusterConfig.enablePrivateNodes`, `workloadIdentityConfig.workloadPool`, `legacyAbac.enabled`, `masterAuthorizedNetworksConfig.enabled`, `masterAuth.username`
+  - Optional waiver list: `input.exceptions[]` with `id` matching cluster `name`
+- **Deny conditions**:
+  - Private nodes not enabled
+  - Workload Identity pool empty
+  - Legacy ABAC enabled
+  - Master Authorized Networks disabled
+  - Legacy basic auth username set
+
+```bash
+curl -X POST http://localhost:8181/v1/data/gke/policy \
+  -H "Content-Type: application/json" \
+  -d @inputs/gke.json
+```
+
+### 7) GCP - IAM
+
+- **Policy package**: `iam.policy`
+- **Endpoint**: `POST /v1/data/iam/policy`
+- **Expected input schema**:
+  - `input.iamBindings[]` with fields: `id`, `role`, `members[]`
+  - `input.serviceAccounts[]` with fields: `email`, `keys[].keyType`
+  - Optional waiver list: `input.exceptions[]` with `id` matching binding `id` or SA `email`
+- **Deny conditions**:
+  - Member is `allUsers` or `allAuthenticatedUsers`
+  - Role is `roles/owner`, `roles/editor`, or `roles/viewer`
+  - Service account has a `USER_MANAGED` key
+
+```bash
+curl -X POST http://localhost:8181/v1/data/iam/policy \
+  -H "Content-Type: application/json" \
+  -d @inputs/iam.json
+```
+
 ### Notes
 
-- All policies deny on `HIGH` and `CRITICAL` severities.
-- Field names are scanner-specific and must match exactly:
+- AppSec policies (SAST/DAST/MAST/SCA) deny on `HIGH` and `CRITICAL` severities.
+- GCP policies (GCS/GKE/IAM) deny on misconfiguration rather than severity.
+- Field names are policy-specific and must match exactly:
   - SAST: `vulnerabilities`
   - DAST: `issues`
   - MAST: `findings`
   - SCA: `dependencies`
-- Waivers are optional and scanner-agnostic via `input.exceptions[]`:
-  - Example: `{ "id": "CVE-2021-44228" }`
+  - GCS: `buckets`
+  - GKE: `clusters`
+  - IAM: `iamBindings`, `serviceAccounts`
+- Waivers are optional and policy-agnostic via `input.exceptions[]`:
+  - Example: `{ "id": "CVE-2021-44228" }` or `{ "id": "secure-prod-bucket" }`
   - Match behavior: if exception `id` matches the policy identifier, that result is skipped.
 
 ## Common Errors and Fixes

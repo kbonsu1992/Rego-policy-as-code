@@ -1,0 +1,30 @@
+{
+  "buckets": [
+    {
+      "name": "public-demo-bucket",
+      "iamConfiguration": {
+        "uniformBucketLevelAccess": { "enabled": false },
+        "publicAccessPrevention": "inherited"
+      },
+      "iamBindings": [
+        {
+          "role": "roles/storage.objectViewer",
+          "members": ["allUsers"]
+        }
+      ]
+    },
+    {
+      "name": "secure-prod-bucket",
+      "iamConfiguration": {
+        "uniformBucketLevelAccess": { "enabled": true },
+        "publicAccessPrevention": "enforced"
+      },
+      "iamBindings": [
+        {
+          "role": "roles/storage.objectViewer",
+          "members": ["serviceAccount:app@project.iam.gserviceaccount.com"]
+        }
+      ]
+    }
+  ]
+}
