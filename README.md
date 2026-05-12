@@ -1,5 +1,7 @@
 # Rego Policy as Code - Application Security Scanner Policies
 
+[![Rego Policy Tests](https://github.com/kbonsu1992/Rego-policy-as-code/actions/workflows/policy-tests.yml/badge.svg)](https://github.com/kbonsu1992/Rego-policy-as-code/actions/workflows/policy-tests.yml)
+
 This project uses Open Policy Agent (OPA) to enforce policy-as-code checks for SAST, DAST, MAST, and SCA scan results.
 
 ## Project Structure
@@ -441,7 +443,30 @@ curl -X POST http://localhost:8181/v1/data/sca/policy \
 ```
 
 ### Automated Testing
-Add automated tests (for example, OPA/Rego test cases) to validate policy behavior across multiple input variants.
+
+Each policy ships with a matching `*_test.rego` file under `opa-pac-demo/policies/`. Run all tests with:
+
+```bash
+docker run --rm -v $(pwd)/opa-pac-demo/policies:/policies openpolicyagent/opa:latest test -v /policies
+```
+
+Tests cover:
+
+- Deny on `HIGH` and `CRITICAL` severities (AppSec policies)
+- Misconfiguration triggers for GCS / GKE / IAM
+- Severity case-insensitivity
+- Waiver behavior via `input.exceptions[].id`
+- Safe handling of missing/empty inputs
+
+### Continuous Integration
+
+A GitHub Actions workflow runs on every push/PR that touches policies:
+
+- File: `.github/workflows/policy-tests.yml`
+- Steps:
+  - `opa fmt --list` — format check
+  - `opa check` — syntax validation
+  - `opa test --verbose` — runs all `*_test.rego` files
 
 ## Integration Examples
 

@@ -1,0 +1,17 @@
+# Local OPA binary / tooling cache
+.tools/
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Build / run artifacts
+*.log
+*.tmp
+
+# Local environment files
+.env
+.env.*

@@ -1,0 +1,44 @@
+name: Rego Policy Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "opa-pac-demo/policies/**"
+      - ".github/workflows/policy-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "opa-pac-demo/policies/**"
+      - ".github/workflows/policy-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rego:
+    name: opa check / opa test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Show OPA version
+        run: opa version
+
+      - name: Rego format check
+        run: opa fmt --list opa-pac-demo/policies
+
+      - name: Rego syntax check
+        run: opa check opa-pac-demo/policies
+
+      - name: Run policy unit tests
+        run: opa test --verbose opa-pac-demo/policies
